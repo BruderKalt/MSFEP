@@ -1,0 +1,54 @@
+﻿<div class="repositoryitem">
+    <div class="topbar">
+        <div class="left-section">
+            <div class="repositoryname">@Repo.Name</div>
+            <button class="toggleButton" @onclick="ToggleDescription">
+                @(showDescription ? "∧" : "∨")
+            </button>
+        </div>
+
+        <div class="right-section">
+            <div class="@(IsAccessable ? "accessStateVerified" : "accessStateUnverified")">
+                @(IsAccessable ? "Access verified" : "Access unverified")
+            </div>
+            <button class="verifyButton" @onclick="OpenIt">
+                @(IsAccessable ? "Remove" : "Verify")
+            </button>
+        </div>
+    </div>
+
+    @if (showDescription)
+    {
+        @if (string.IsNullOrWhiteSpace(Repo.Description))
+        {
+            <div class="repositorydescription">
+                No Description available.
+            </div>
+        }
+        else
+        {
+            <div class="repositorydescription">
+                @Repo.Description
+            </div>
+        }
+    }
+</div>
+
+
+@code {
+    [Parameter] public EventCallback OnOpenVerifyModal { get; set; }
+    [Parameter] public Octokit.Repository Repo { get; set; }
+
+    private bool IsAccessable = false;
+    private bool showDescription = false;
+
+    private void OpenIt()
+    {
+        OnOpenVerifyModal.InvokeAsync();
+    }
+
+    private void ToggleDescription()
+    {
+        showDescription = !showDescription;
+    }
+}

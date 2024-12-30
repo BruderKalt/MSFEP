@@ -1,0 +1,26 @@
+﻿.modal-body {
+    max-height: 65vh;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex: 1;
+}
+
+.form-control {
+    width: 100%;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+}
+
+.button-wrap {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}

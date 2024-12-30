@@ -1,0 +1,153 @@
+﻿@namespace MSFEP.Components.Modal
+@using MSFEP.DataAccess.Interfaces
+@using MSFEP.Models
+@using MSFEP.DataAccess
+@using MSFEP.Services
+
+
+@inject IProjectAffiliationRequestDataAccess projectAffiliationDataAccess
+@inject IIssuanceService issuanceService
+
+<div class="modal" tabindex="-1" style="display:@(IsVisible ? "block" : "none");" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            @if (isIssued)
+            {
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Projektausweis erhalten</h5>
+                        <button class="btn-close" @onclick="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="container-fluid">
+                            <div class="credentialWrap">
+                                @if (!string.IsNullOrEmpty(errorMessage))
+                                {
+                                    <div>@errorMessage</div>
+                                }
+                                @if (!string.IsNullOrEmpty(qrCode))
+                                {
+                                    <img class="qrCode" src="@qrCode" alt="QR Code" />
+                                    <div class="expiryDate">Ablaufdatum: @expiresAt</div>
+                                    <div class="expiryDate">PIN: @pin</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <div class="button-wrap">
+                            <button type="button" class="btn btn-secondary" @onclick="Close">Schließen</button>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="modal-header">
+                    <h5 class="modal-title">Projektausweis beantragen</h5>
+                    <button class="btn-close" @onclick="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="container-fluid">
+                        <div class="row mb-2">
+                            <label class="col-sm-4 col-form-label">Projektname</label>
+                            <div class="col-sm-8">
+                                <input class="form-control" @bind-value="@projectAffiliationRequestCreate.ProjectName" />
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <label class="col-sm-4 col-form-label">Name</label>
+                            <div class="col-sm-8">
+                                <input class="form-control" @bind-value="@projectAffiliationRequestCreate.Name" disabled />
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <label class="col-sm-4 col-form-label">Role</label>
+                            <div class="col-sm-8">
+                                <input class="form-control" @bind-value="@projectAffiliationRequestCreate.Role" />
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <label class="col-sm-4 col-form-label">GitHub-Benutzername</label>
+                            <div class="col-sm-8">
+                                <input class="form-control" @bind-value="@projectAffiliationRequestCreate.GitHubUsername" />
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <label class="col-sm-4 col-form-label">UserPrincipalName</label>
+                            <div class="col-sm-8">
+                                <input class="form-control" @bind-value="@projectAffiliationRequestCreate.UserPrincipalName" disabled />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="button-wrap">
+                        <button type="button" class="btn btn-danger" @onclick="ExecuteCreate">Anlegen</button>
+                        <button type="button" class="btn btn-secondary" @onclick="Close">Schließen</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public Func<ProjectAffiliationRequestCreate, Task<int>> OnCreate { get; set; }
+    [Parameter] public string UserPrincipalName { get; set; } = string.Empty;
+    [Parameter] public string Name { get; set; } = string.Empty;
+
+    private IssuanceResponse? issuanceResponse = null;
+    bool isIssued = false;
+    private string qrCode = string.Empty;
+    private string pin = string.Empty;
+    private DateTime expiresAt;
+    private string errorMessage = string.Empty;
+
+    private ProjectAffiliationRequestCreate projectAffiliationRequestCreate = new();
+
+    protected override void OnInitialized()
+    {
+        projectAffiliationRequestCreate.UserPrincipalName = UserPrincipalName;
+        projectAffiliationRequestCreate.Name = Name;
+    }
+
+    private void Close()
+    {
+        IsVisible = false;
+        OnClose.InvokeAsync();
+    }
+
+    private async Task ExecuteCreate()
+    {
+        var isGranted = await projectAffiliationDataAccess.CheckGrantAsync(projectAffiliationRequestCreate.UserPrincipalName, projectAffiliationRequestCreate.ProjectName, projectAffiliationRequestCreate.Name, projectAffiliationRequestCreate.GitHubUsername, projectAffiliationRequestCreate.Role);
+
+        if (isGranted)
+        {
+            await IssueProjectAffiliationCredential(projectAffiliationRequestCreate);
+        }
+        else
+        {
+            var x = await OnCreate(projectAffiliationRequestCreate);
+            Close();
+        }
+    }
+
+    private async Task IssueProjectAffiliationCredential(ProjectAffiliationRequestCreate projectAffiliationRequest)
+    {
+        issuanceResponse = await issuanceService.IssueProjectAffiliation(projectAffiliationRequest);
+
+        if (issuanceResponse is not null)
+        {
+            DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(issuanceResponse.expiry);
+            expiresAt = dateTimeOffset.ToLocalTime().DateTime;
+
+            qrCode = issuanceResponse.qrCode;
+            pin = issuanceResponse.pin.ToString();
+
+            isIssued = true;
+        }
+    }
+}

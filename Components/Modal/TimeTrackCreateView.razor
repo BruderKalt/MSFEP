@@ -1,0 +1,147 @@
+﻿@namespace MSFEP.Components.Modal
+
+@using MSFEP.Controllers
+@using MSFEP.Models
+@using MSFEP.Services
+
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IVerificationService verServ
+@inject HttpClient HttpClient
+
+<div class="modal-overlay" style="visibility:@(IsVisible ? "visible" : "hidden");">
+    <div class="modal-dialog modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Zeiteintrag anlegen</h5>
+                <button class="btn-close" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <label class="col-sm-4 col-form-label">UserPrincipalName</label>
+                        <div class="col-sm-8">
+                            <input class="form-control" @bind-value="@timeTrackEntryCreate.UserPrincipalName" disabled />
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <label class="col-sm-4 col-form-label">Arbeitsstunden</label>
+                        <div class="col-sm-8">
+                            <input class="form-control" type="number" @bind-value="@timeTrackEntryCreate.Hours" />
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <label class="col-sm-4 col-form-label">Datum</label>
+                        <div class="col-sm-8">
+                            <input class="form-control" type="date" @bind-value="@timeTrackEntryCreate.Workday" />
+                        </div>
+                    </div>
+
+                    <div class="costCenterWrap">
+                        @if (string.IsNullOrEmpty(costCenterId) || string.IsNullOrEmpty(costCenterName))
+                        {
+                            @if (string.IsNullOrEmpty(qrCode))
+                            {
+                                <button @onclick="VerifyCostCenterCredential" class="costCenterButton">Kostenstelle auswählen</button>
+                            }
+                            else
+                            {
+                                <div class="costCenterLabel">Kostenstelle bestätigen</div>
+                                <img class="qrCode" src="@qrCode" alt="QR Code" />
+                                <div class="expiryDate">Ablaufdatum: @expiresAt</div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="costCenterLabel">Kostenstelle</div>
+                            <div class="costCenterAttribute">Id: @costCenterId</div>
+                            <div class="costCenterAttribute">Bezeichnung: @costCenterName</div>
+                            <button @onclick="VerifyCostCenterCredential" class="costCenterButton">Kostenstelle ändern</button>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="button-wrap">
+                    <button type="button" class="btn btn-danger" @onclick="ExecuteCreate">Anlegen</button>
+                    <button type="button" class="btn btn-secondary" @onclick="Close">Schließen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public Func<TimeTrackEntryCreate, Task<int>> OnCreate { get; set; }
+    [Parameter] public List<Project> Projects { get; set; }
+    [Parameter] public string UserPrincipalName { get; set; } = "Patrick.Zimny@mustersoftwarefabrik.onmicrosoft.com";
+
+    private string costCenterId = string.Empty;
+    private string costCenterName = string.Empty;
+    private string qrCode = string.Empty;
+    private DateTime expiresAt { get; set; }
+    private string ErrorMessage = string.Empty;
+
+    private TimeTrackEntryCreate timeTrackEntryCreate = new();
+
+    protected override void OnInitialized()
+    {
+        timeTrackEntryCreate.UserPrincipalName = UserPrincipalName;
+        timeTrackEntryCreate.Workday = DateTime.Now;
+    }
+
+    private async Task VerifyCostCenterCredential()
+    {
+        var state = Guid.NewGuid().ToString();
+        var CredentialTempalte = Templates.GetMSFCostCenterTemplate(state);
+
+        try
+        {
+            var verificationResponse = await verServ.VerifyCredential(CredentialTempalte);
+
+            if (verificationResponse != null && !string.IsNullOrEmpty(verificationResponse.qrCode))
+            {
+                qrCode = verificationResponse.qrCode;
+                DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(verificationResponse.expiry);
+                expiresAt = dateTimeOffset.ToLocalTime().DateTime;
+                StateHasChanged();
+
+                var callback = await verServ.PollForCallback(state);
+
+                if (callback.requestStatus == "presentation_verified")
+                {
+                    costCenterId = callback!.verifiedCredentialsData[0].claims["projectID"];
+                    costCenterName = callback.verifiedCredentialsData[0].claims["projectName"];
+                    timeTrackEntryCreate.ProjectId = Convert.ToInt16(costCenterId);
+                }
+                else if (callback.requestStatus == "presentation_error")
+                {
+                    ErrorMessage = "Verifizierungsanfrage fehlgeschlagen.";
+                }
+            }
+            else
+            {
+                ErrorMessage = "Verifizierungsanfrage fehlgeschlagen.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Fehler: {ex.Message}";
+        }
+    }
+
+    private void Close()
+    {
+        IsVisible = false;
+        OnClose.InvokeAsync();
+    }
+
+    private async Task ExecuteCreate()
+    {
+        var x = await OnCreate(timeTrackEntryCreate);
+        Close();
+    }
+}

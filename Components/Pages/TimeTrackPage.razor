@@ -1,0 +1,12 @@
+﻿@page "/Zeiterfassungsverwaltung"
+
+@using MSFEP.Components.Table
+@using Microsoft.AspNetCore.Authorization
+@attribute [StreamRendering]
+@attribute [Authorize(Policy = "AdminOnly")]
+
+<PageTitle>Zeiterfassung</PageTitle>
+
+<div class="thisPage">
+    <TimeTrackTable @rendermode="InteractiveServer" />
+</div>

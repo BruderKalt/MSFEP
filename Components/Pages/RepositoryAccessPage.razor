@@ -1,0 +1,136 @@
+﻿@page "/RepoZugriff"
+
+@using MSFEP.Controllers
+@using MSFEP.Models
+@using MSFEP.Services
+@using MSFEP.Services.Interfaces
+@using MSFEP.Components.Miscellaneous
+@using MSFEP.Components.Modal
+
+@rendermode InteractiveServer
+
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager NavigationManager
+@inject IVerificationService verificationService
+@inject HttpClient HttpClient
+@inject IGitHubAppService GitHubAppService
+
+<PageTitle>MSF Repo Access</PageTitle>
+
+@if (!IsLoggedIn)
+{
+    <div class="text-center">
+        <h1>Loading</h1>
+    </div>
+}
+else
+{
+    <div>
+        @if (repositoriesOrg == null)
+        {
+            <p>Loading...</p>
+        }
+        else
+        {
+            <div class="repositorieswrapper">
+                @foreach (var repo in repositoriesOrg)
+                {
+                    <RepositoryItem OnOpenVerifyModal="() => VerifyProjectAffiliation(repo)" Repo="repo" @rendermode="InteractiveServer" />
+                }
+            </div>
+        }
+    </div>
+
+    <VerifyRepoView ErrorMessage="@errorMessage" QrCode="@qrCode" ExpiresAt="@expiresAt" OnClose="CloseVerifyModal" IsVisible="isVerifyModalVisible" />
+}
+
+@code {
+    private readonly string gitHubOrgName = "Mustersoftwarefabrik";
+    private bool IsLoggedIn;
+    private string userName = "MSFPeterSchneider";
+    private IReadOnlyList<Octokit.Repository> repositoriesOrg = [];
+    private Dictionary<string, string> repoAccessStatus = new Dictionary<string, string>();
+
+    private bool isVerifyModalVisible = false;
+    private string qrCode = string.Empty;
+    private DateTime expiresAt;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            repositoriesOrg = await GitHubAppService.GetOrganizationRepositoriesAsync("Mustersoftwarefabrik");
+
+            foreach (var repo in repositoriesOrg)
+            {
+                repoAccessStatus[repo.Name] = "Pending";
+            }
+
+            IsLoggedIn = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to fetch repositories: {ex.Message}");
+            IsLoggedIn = false;
+        }
+    }
+
+    private async Task VerifyProjectAffiliation(Octokit.Repository repository)
+    {
+        try
+        {
+            var state = Guid.NewGuid().ToString();
+            var CredentialTemplate = Templates.GetMSFProjectAffiliationTemplate(state);
+
+            var verificationResponse = await verificationService.VerifyCredential(CredentialTemplate);
+            if (verificationResponse != null && !string.IsNullOrEmpty(verificationResponse.qrCode))
+            {
+                qrCode = verificationResponse.qrCode;
+                DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(verificationResponse.expiry);
+                expiresAt = dateTimeOffset.ToLocalTime().DateTime;
+                OpenVerifyModal(qrCode,expiresAt);
+                StateHasChanged();
+
+                var callback = await verificationService.PollForCallback(state);
+                if (callback.requestStatus == "presentation_verified")
+                {
+                    var repoName = callback.verifiedCredentialsData[0].claims["projectName"];
+
+                    if (repoName == repository.Name)
+                    {
+                        await GitHubAppService.GrantRepositoryAccess(gitHubOrgName, repoName, userName, "push");
+                    }
+
+                    qrCode = string.Empty;
+                    CloseVerifyModal();
+                }
+                else if (callback.requestStatus == "presentation_error")
+                {
+                    callback.requestStatus = "presentation_error";
+                }
+            }
+            else
+            {
+                errorMessage = "Verifizierungsanfrage fehlgeschlagen.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Fehler: {ex.Message}";
+        }
+    }
+
+    private void OpenVerifyModal(string qrCode, DateTime expiresAt) 
+    {
+        this.qrCode = qrCode;
+        this.expiresAt = expiresAt; 
+        isVerifyModalVisible = true;
+    }
+
+    private void CloseVerifyModal() 
+    {
+        this.qrCode = string.Empty;
+        isVerifyModalVisible = false;
+    }
+}

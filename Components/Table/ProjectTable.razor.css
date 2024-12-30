@@ -1,0 +1,194 @@
+﻿.tableContainer {
+    display: flex;
+    height: 85vh !important;
+}
+
+.tableControls {
+    display: flex;
+    flex-direction: column;
+    height: inherit;
+    width: 10vw !important;
+    margin-right: 1rem;
+    border: solid;
+    border-radius: 4px;
+    border-color: black;
+    color: black;
+}
+
+.controlButton {
+    height: 2rem;
+    padding: 0.1rem 0.75rem 0rem 0.5rem;
+    background: inherit;
+    border: none;
+    border-bottom: solid;
+    border-bottom-width: 1px;
+    border-color: inherit;
+    color: inherit;
+    width: 100%;
+}
+
+    .controlButton.delete {
+        color: white;
+        background-color: lightcoral;
+    }
+
+    .controlButton.disabled {
+        color: white;
+        background-color: lightgrey;
+    }
+
+    .controlButton:hover:not(:disabled) {
+        background-color: lightblue;
+    }
+
+.columnBox {
+    display: flex;
+    flex-wrap: wrap;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-bottom: solid;
+    border-bottom-width: 1px;
+    border-color: inherit;
+}
+
+.boxHeader {
+    height: 2.5rem;
+    text-align: center;
+    border-bottom: solid;
+    border-bottom-width: 1px;
+    border-color: inherit;
+    padding-top: 0.5rem;
+    font-weight: bold;
+    user-select: none;
+}
+
+.columnButton {
+    margin: 0.2rem;
+    padding: 0.2rem;
+    border: solid;
+    border-radius: 20px;
+    border-width: 2px;
+    text-align: center;
+    width: min-content;
+    white-space: nowrap;
+    font-size: 14px;
+    user-select: none;
+    height: min-content;
+}
+
+    .columnButton.hidden {
+        background-color: darkgrey;
+    }
+
+    .columnButton:hover {
+        background-color: lightgray;
+    }
+
+.dataTable {
+    border-style: solid;
+    border-width: 1px;
+    border-color: black;
+    overflow: auto;
+    border-radius: 4px;
+}
+
+    .dataTable.sidebarExtended {
+        width: 72.5vw !important;
+    }
+
+    .dataTable.sidebarCollapsed {
+        width: 72.5vw !important;
+    }
+
+    .dataTable th,
+    .dataTable td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .dataTable thead th {
+        position: sticky;
+        top: 0;
+        background-color: black;
+        color: white;
+        /* z-index: 2; */
+        cursor: pointer;
+        user-select: none;
+    }
+
+.table-row:nth-child(even) {
+    background-color: #ffffff;
+}
+
+.table-row:nth-child(odd) {
+    background-color: #f2f2f2;
+}
+
+.selected {
+    background-color: #d1e7fd;
+}
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1;
+}
+
+.noColumns {
+    text-align: center;
+    width: auto;
+    user-select: none;
+    padding-top: 25%;
+}
+
+.filterEntryWrap {
+    display: flex;
+    flex-direction: column;
+    height: 7.1rem;
+    padding: 0.25rem;
+    padding-top: 0.5rem;
+    align-items: center;
+}
+
+.filterInput {
+    border: solid;
+    border-width: 1px;
+    padding-left: 0.25rem;
+    width: 92.5%;
+    border-radius: 4px;
+}
+
+.filterBox {
+    visibility: collapse;
+    display: flex;
+    flex-wrap: wrap;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-bottom: solid;
+    border-bottom-width: 1px;
+    border-color: inherit;
+    height: 12.5% !important;
+}
+
+.appliedFilter {
+    margin: 0.2rem;
+    padding: 0.2rem;
+    border: solid;
+    border-radius: 20px;
+    border-width: 2px;
+    text-align: center;
+    width: min-content;
+    height: min-content;
+    white-space: nowrap;
+    font-size: 14px;
+    user-select: none;
+}
+
+    .appliedFilter:hover {
+        background-color: lightgray;
+    }

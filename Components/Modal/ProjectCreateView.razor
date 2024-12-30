@@ -1,0 +1,56 @@
+﻿@namespace MSFEP.Components.Modal
+
+@using MSFEP.Models
+
+<div class="modal" tabindex="-1" style="display:@(IsVisible ? "block" : "none");" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Projekt anlegen</h5>
+                <button class="btn-close" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <label class="col-sm-4 col-form-label">Projektname</label>
+                        <div class="col-sm-8">
+                            <input class="form-control" @bind-value="@projectCreate.Name"/>
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <label class="col-sm-4 col-form-label">Manager</label>
+                        <div class="col-sm-8">
+                            <input class="form-control" @bind-value="@projectCreate.Manager" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="button-wrap">
+                    <button type="button" class="btn btn-danger" @onclick="ExecuteCreate">Anlegen</button>
+                    <button type="button" class="btn btn-secondary" @onclick="Close">Schließen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public Func<ProjectCreate, Task<int>> OnCreate { get; set; }
+
+    private ProjectCreate projectCreate = new();
+
+    private void Close()
+    {
+        IsVisible = false;
+        OnClose.InvokeAsync();
+    }
+
+    private async Task ExecuteCreate()
+    {
+        var x = await OnCreate(projectCreate);
+        Close();
+    }
+}

@@ -1,0 +1,52 @@
+﻿@namespace MSFEP.Components.Modal
+
+@using MSFEP.Controllers
+@using MSFEP.Models
+@using MSFEP.Services
+@using MSFEP.Services.Interfaces
+
+<div class="modal-overlay" style="visibility:@(IsVisible ? "visible" : "hidden");">
+    <div class="modal-dialog modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Projektausweis vorzeigen</h5>
+                <button class="btn-close" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container-fluid">
+                    <div class="credentialWrap">
+                        @if(!string.IsNullOrEmpty(ErrorMessage))
+                        {
+                            <div>@ErrorMessage</div>
+                        }
+                        @if (!string.IsNullOrEmpty(QrCode))
+                        {
+                            <div class="costCenterLabel">Projektausweis bestätigen</div>
+                            <img class="qrCode" src="@QrCode" alt="QR Code" />
+                            <div class="expiryDate">Ablaufdatum: @ExpiresAt</div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="button-wrap">
+                    <button type="button" class="btn btn-secondary" @onclick="Close">Schließen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public string QrCode { get; set; } = string.Empty;
+    [Parameter] public DateTime ExpiresAt { get; set; }
+    [Parameter] public string ErrorMessage { get; set; } = string.Empty;
+
+    private async Task Close()
+    {
+        IsVisible = false;
+        await OnClose.InvokeAsync();
+    }
+}

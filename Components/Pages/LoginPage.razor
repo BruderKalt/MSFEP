@@ -1,0 +1,74 @@
+﻿@page "/login"
+
+@using MSFEP.Controllers
+@using MSFEP.Models
+@using MSFEP.Services
+
+@rendermode InteractiveServer
+
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IVerificationService verServ
+@inject NavigationManager NavigationManager
+@inject HttpClient HttpClient
+
+<div class="wrapperPage">
+    <div class="loginContainer">
+        <div class="headline">MSF Mitarbeiterportal</div>
+        <div class="infotext">Willkommen zum Mitarbeiterportal der Mustersoftwarefabrik GmbH. Für den Zugriff müssen Sie ihr Anstellungsverhältnis verifizieren.</div>
+        @if (!string.IsNullOrEmpty(qrCode))
+        {
+            <img class="qrCode" src="@qrCode" alt="QR Code" />
+            <div class="expiryDate">Ablaufdatum: @expiresAt</div>
+        }else
+        {
+            <button class="loginButton" @onclick="VerifyEmployee">Login via Verifiable Credentials</button>
+        }
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger">@ErrorMessage</div>
+        }
+    </div>
+</div>
+
+@code {
+    private string qrCode { get; set; }
+    private DateTime expiresAt { get; set; }
+    private string ErrorMessage { get; set; }
+
+    private async Task VerifyEmployee()
+    {
+        try
+        {
+            var state = Guid.NewGuid().ToString();
+            var CredentialTemplate = Templates.GetVerifiedEmployeeTemplate(state);
+
+            var verificationResponse = await verServ.VerifyCredential(CredentialTemplate);
+            if (verificationResponse != null && !string.IsNullOrEmpty(verificationResponse.qrCode))
+            {
+                qrCode = verificationResponse.qrCode;
+                DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(verificationResponse.expiry);
+                expiresAt = dateTimeOffset.ToLocalTime().DateTime;
+                StateHasChanged();
+
+                var callback = await verServ.PollForCallback(state);
+
+                if (callback.requestStatus == "presentation_verified")
+                {
+                    NavigationManager.NavigateTo($"/auth/login?state={state}", true);
+                }
+                else if (callback.requestStatus == "presentation_error")
+                {
+                    callback.requestStatus = "presentation_error";
+                }
+            }
+            else
+            {
+                ErrorMessage = "Verifizierungsanfrage fehlgeschlagen.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Fehler: {ex.Message}";
+        }
+    }
+}

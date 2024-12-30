@@ -1,0 +1,26 @@
+﻿@using MSFEP.Controllers
+@using MSFEP.Services
+@using MSFEP.Components.Modal
+@using Microsoft.AspNetCore.Authorization
+
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager NavigationManager
+@attribute [Authorize]
+
+<button class="logoutbutton" @onclick="Logout">Logout @userName</button>
+
+@code {
+    private string userName = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        var userPrincipal = HttpContextAccessor.HttpContext?.User?.Claims.FirstOrDefault(c => c.Type == "userPrincipalName")?.Value;
+        userName = $"{userPrincipal}";
+    }
+
+    private void Logout()
+    {
+        NavigationManager.NavigateTo($"/auth/logout", true);
+    }
+}
+

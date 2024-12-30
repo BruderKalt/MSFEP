@@ -1,0 +1,62 @@
+﻿.wrapperPage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: dimgrey;
+    min-height: 100vh !important;
+    min-width: 100vw !important;
+}
+
+.loginContainer {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    background-color: azure;
+    border-radius: 20px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    transition: box-shadow 0.3s ease;
+}
+
+.loginButton {
+    margin-block-start: 1rem;
+    margin-block-end: 2rem;
+    padding-inline-start: 1rem;
+    padding-inline-end: 1rem;
+    font-size: 16px;
+    border-radius: 4px;
+    border: solid;
+    border-width: 1px;
+    background-color: lightgrey;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    transition: box-shadow 0.3s ease;
+}
+
+    .loginButton:hover {
+        box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.3);
+    }
+
+.expiryDate {
+    margin-block-end: 2rem;
+    font-weight: 500;
+    font-size: 16px;
+}
+
+.headline {
+    margin-top: 1rem;
+    font-weight: 600;
+    font-size: 25px;
+}
+
+.infotext {
+    margin-inline-start: 1rem;
+    margin-inline-end: 1rem;
+    font-size: 16px;
+    text-align: center;
+    word-wrap: break-word;
+    white-space: normal;
+    max-width: 35vw;
+}
+
+.qrCode {
+    margin-block-start: 0.5rem;
+}

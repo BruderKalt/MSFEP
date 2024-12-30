@@ -1,0 +1,144 @@
+﻿@page "/"
+
+@using System.Security.Claims
+@using MSFEP.Models
+@using MSFEP.Services
+@using MSFEP.DataAccess
+@using MSFEP.DataAccess.Interfaces
+@using MSFEP.Services.Interfaces
+@using Microsoft.AspNetCore.Authorization
+@using MSFEP.Components.Modal
+
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IIssuanceService issuanceService
+@inject IProjectAffiliationRequestDataAccess projectAffiliationRequestDataAccess
+@inject IGitHubAppService gitHubAppService
+
+<div class="sectionWrapper">
+    <div class="sectionHeader">Mitarbeiterdaten</div>
+    <div class="sectionBody">
+        @if(userClaims != null)
+        {
+            <div class="employeeWrapperLeft">
+                <div><strong>Benutzer:</strong> @userClaims.FirstOrDefault(c => c.Type == "displayName")?.Value</div>
+                <div><strong>Vorname:</strong> @userClaims.FirstOrDefault(c => c.Type == "firstName")?.Value</div>
+                <div><strong>Nachname:</strong> @userClaims.FirstOrDefault(c => c.Type == "lastName")?.Value</div>
+                <div><strong>Berufsbezeichnung:</strong> @userClaims.FirstOrDefault(c => c.Type == "jobTitle")?.Value</div>
+            </div>
+            <div class="employeeWrapperRight">
+                <div><strong>UPN:</strong> @userClaims.FirstOrDefault(c => c.Type == "userPrincipalName")?.Value</div>
+                <div><strong>E-Mail:</strong> @userClaims.FirstOrDefault(c => c.Type == "email")?.Value</div>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="sectionWrapper">
+    <div class="sectionHeader">Aktionen</div>
+    <div class="sectionBody">
+        <button class="actionButton" @onclick="IssueEmployeeCredential">Austellen eines neuen Anstellungsausweises</button>
+    </div>
+    <div class="sectionBody">
+        <button class="actionButton" @onclick="OpenProjectAffiliationModal">Beantragen eines neuen Projektausweises</button>
+    </div>
+</div>
+
+
+@if(isIssueModalVisible)
+{
+    <div class="overlay"></div>
+    <IssuanceView ErrorMessage="@errorMessage" Pin="@pin" QrCode="@qrCode" ExpiresAt="@expiresAt" OnClose="CloseCredentialIssuanceModal" IsVisible="@isIssueModalVisible" />
+}
+
+@if (isProjetcAffiliationCreateViewVisible)
+{
+    <div class="overlay"></div>
+    <ProjectAffiliationCreateView UserPrincipalName="@userPrincipalName" Name="@name" OnCreate="projectAffiliationRequestDataAccess.CreateAsync" OnClose="CloseProjectAffiliationModal" IsVisible="@isProjetcAffiliationCreateViewVisible" />
+}
+
+@code {
+    private bool isIssueModalVisible = false;
+    private bool isProjetcAffiliationCreateViewVisible = false;
+    private string qrCode = string.Empty;
+    private string pin = string.Empty;
+    private DateTime expiresAt;
+    private string errorMessage = string.Empty;
+
+    private string userPrincipalName = string.Empty;
+    private string name = string.Empty;
+
+    private List<Claim> userClaims;
+    private IssuanceResponse? issuanceResponse = null;
+
+    protected override void OnInitialized()
+    {
+        var user = HttpContextAccessor.HttpContext?.User;
+
+        if (user != null && user.Claims.Any())
+        {
+            userClaims = user.Claims.ToList();
+            userPrincipalName = userClaims.FirstOrDefault(c => c.Type == "userPrincipalName")?.Value;
+            name = userClaims.FirstOrDefault(c => c.Type == "displayName")?.Value;
+        }
+    }
+
+    private async Task IssueEmployeeCredential()
+    {
+        issuanceResponse = await issuanceService.IssueProofOfEmployment();
+
+        if (issuanceResponse is not null)
+        {
+            DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(issuanceResponse.expiry);
+            expiresAt = dateTimeOffset.ToLocalTime().DateTime;
+
+            qrCode = issuanceResponse.qrCode;
+            pin = issuanceResponse.pin.ToString();
+        }
+
+        OpenCredentialIssuanceModal(qrCode, expiresAt, pin);
+    }
+
+    private async Task IssueProjectAffiliationCredential(ProjectAffiliationRequestCreate projectAffiliationRequest)
+    {
+        issuanceResponse = await issuanceService.IssueProjectAffiliation(projectAffiliationRequest);
+
+        if (issuanceResponse is not null)
+        {
+            DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(issuanceResponse.expiry);
+            expiresAt = dateTimeOffset.ToLocalTime().DateTime;
+
+            qrCode = issuanceResponse.qrCode;
+            pin = issuanceResponse.pin.ToString();
+        }
+
+        OpenCredentialIssuanceModal(qrCode, expiresAt, pin);
+    }
+
+    private void OpenProjectAffiliationModal()
+    {
+        isProjetcAffiliationCreateViewVisible = true;
+    }
+
+    private void CloseProjectAffiliationModal()
+    {
+        isProjetcAffiliationCreateViewVisible = false;
+    }
+
+    private void OpenCredentialIssuanceModal(string qrCode, DateTime expiresAt, string pin)
+    {
+        this.qrCode = qrCode;
+        this.expiresAt = expiresAt;
+        this.pin = pin;
+        isIssueModalVisible = true;
+    }
+
+    private void CloseCredentialIssuanceModal()
+    {
+        this.qrCode = string.Empty;
+        this.pin = string.Empty;
+        isIssueModalVisible = false;
+    }
+}

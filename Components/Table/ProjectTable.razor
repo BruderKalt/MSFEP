@@ -1,0 +1,71 @@
+﻿@namespace MSFEP.Components.Table
+@using System.Net.Http.Json
+@using MSFEP.Components.Modal
+@using MSFEP.Models
+
+<div class="tableContainer">
+    <div class="tableControls">
+        <button class="controlButton" @onclick="ShowCreateModal">Anlegen</button>
+        <div class="filterBox">
+            @foreach (var column in columns.Where(e => !string.IsNullOrWhiteSpace(e.Filter)))
+            {
+                <div @onclick="async () => { column.ChangeFilter(string.Empty); await virtualizeRef.RefreshDataAsync(); }" class="appliedFilter ">X @(column.Header)</div>
+            }
+        </div>
+        <div class="boxHeader">Spaltenauswahl</div>
+        <div class="columnBox">
+            @foreach (var column in columns)
+            {
+                <div @onclick="column.ToggleHidden" class="columnButton @(column.Hidden ? "hidden" : "") ">@column.Header</div>
+            }
+        </div>
+    </div>
+    <div class="dataTable @(SidebarState.IsCollapsed ? "sidebarExtended" : "sidebarCollapsed")">
+        @if (columns.All(e => e.Hidden))
+        {
+            <div class="noColumns">Bitte wählen Sie eine Spalte aus.</div>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        @foreach (var column in columns.Where(e => e.Hidden == false))
+                        {
+                            <th @onclick="() => SortColumn(column.PropertyName)">
+                                @column.Header
+                                @if (sortColumn == column.PropertyName)
+                                {
+                                    <span class="pb-2 ps-1">@(OrderAscending ? "↑" : "↓")</span>
+                                }
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <Virtualize @ref="virtualizeRef" ItemsProvider="LoadItems" Context="project" TItem="Project" OverscanCount="20" SpacerElement="tr">
+                    <ItemContent>
+                        <tr class="table-row">
+                            @foreach (var column in columns.Where(e => e.Hidden == false))
+                            {
+                                <td>@typeof(Project).GetProperty(column.PropertyName).GetValue(project)?.ToString()</td>
+                            }
+                        </tr>
+                    </ItemContent>
+                    <Placeholder>
+                        <tr>
+                            <td>
+                                <div class="">Loading...</div>
+                            </td>
+                        </tr>
+                    </Placeholder>
+                </Virtualize>
+            </table>
+        }
+    </div>
+</div>
+
+@if (isCreateModalVisible)
+{
+    <div class="overlay"></div>
+    <ProjectCreateView IsVisible="isCreateModalVisible" OnClose="CloseModals" OnCreate="dataAccess.CreateAsync"></ProjectCreateView>
+}

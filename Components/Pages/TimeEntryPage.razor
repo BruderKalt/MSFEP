@@ -1,0 +1,185 @@
+﻿@page "/Zeiterfassung"
+@using MSFEP.Models
+@using MSFEP.Components.Modal
+@using MSFEP.DataAccess.Interfaces
+@using MSFEP.DataAccess
+@using MSFEP.Models
+@using Microsoft.AspNetCore.Authorization
+@rendermode InteractiveServer
+
+@inject ITimeTrackDataAccess timeTrackDataAccess
+@inject IProjectDataAccess projectDataAccess
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager NavigationManager
+
+<div class="month-navigation">
+    <button class="addEntryButton" @onclick="ShowCreateModal">Eintrag anlegen</button>
+    <button class="navButton" @onclick="PreviousMonth">⟵</button>
+    <div class="monthYearHeader">@currentMonthName @currentYear</div>
+    <button class="navButton" @onclick="NextMonth">⟶</button>
+</div>
+
+<div class="calendar-grid">
+    @foreach (var dayOfWeek in daysOfWeek)
+    {
+        <div class="day-header">@dayOfWeek</div>
+    }
+
+    @foreach (var week in calendarWeeks)
+    {
+        <div class="calendar-week">
+            @foreach (var day in week)
+            {
+                <div class="calendar-day @GetDayClass(day) @GiveColorToDay(day)">
+                    <div class="day-number">@day.Date.Day</div>
+                    <div class="day-entries">
+                        @if (day.Entries.Any())
+                        {
+                            @foreach (var entry in day.Entries)
+                            {
+                                <div>@entry.ProjectId: @entry.Hours hours</div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (isCreateModalVisible)
+{
+    <div class="overlay"></div>
+    <TimeTrackCreateView UserPrincipalName="@userPrincipalName" IsVisible="isCreateModalVisible" OnClose="CloseModals" OnCreate="timeTrackDataAccess.CreateAsync" Projects="projects"></TimeTrackCreateView>
+}
+
+@code {
+    private bool isCreateModalVisible = false;
+    private List<Project> projects = [];
+
+    private DateTime currentMonth = DateTime.Today;
+    private string currentMonthName => currentMonth.ToString("MMMM");
+    private int currentYear => currentMonth.Year;
+
+    private string userPrincipalName = string.Empty;
+
+    private string[] daysOfWeek = { "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag" };
+
+    private List<List<DayData>> calendarWeeks = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        userPrincipalName = HttpContextAccessor.HttpContext?.User?.Claims.FirstOrDefault(c => c.Type == "userPrincipalName")?.Value;
+        await LoadTimeEntriesForMonth(currentMonth.Month, currentMonth.Year);
+    }
+
+    private async Task LoadTimeEntriesForMonth(int month, int year)
+    {
+        var timeEntries = await timeTrackDataAccess.GetEntriesForMonthAsync(userPrincipalName, month, year);
+        var daysInMonth = DateTime.DaysInMonth(year, month);
+        var firstDayOfMonth = new DateTime(year, month, 1);
+
+        var dayOfWeekOffset = ((int)firstDayOfMonth.DayOfWeek + 6) % 7;
+
+        var prevMonthDays = DateTime.DaysInMonth(firstDayOfMonth.AddMonths(-1).Year, firstDayOfMonth.AddMonths(-1).Month);
+        var firstDayPrevMonth = firstDayOfMonth.AddMonths(-1);
+
+        calendarWeeks = new List<List<DayData>>();
+        var currentWeek = new List<DayData>();
+
+        for (int i = dayOfWeekOffset - 1; i >= 0; i--)
+        {
+            var dayInPrevMonth = prevMonthDays - i;
+            var date = new DateTime(firstDayPrevMonth.Year, firstDayPrevMonth.Month, dayInPrevMonth);
+            currentWeek.Add(new DayData { Date = date, IsOtherMonth = true });
+        }
+
+        for (int day = 1; day <= daysInMonth; day++)
+        {
+            var currentDate = new DateTime(year, month, day);
+            var entriesForDay = timeEntries.Where(e => e.Workday.Date == currentDate).ToList();
+            currentWeek.Add(new DayData { Date = currentDate, Entries = entriesForDay });
+
+            if (currentWeek.Count == 7)
+            {
+                calendarWeeks.Add(currentWeek);
+                currentWeek = new List<DayData>();
+            }
+        }
+
+        var daysAddedInNextMonth = 1;
+        while (currentWeek.Count < 7)
+        {
+            var date = new DateTime(year, month, daysInMonth).AddDays(daysAddedInNextMonth);
+            currentWeek.Add(new DayData { Date = date, IsOtherMonth = true });
+            daysAddedInNextMonth++;
+        }
+
+        if (currentWeek.Any())
+        {
+            calendarWeeks.Add(currentWeek);
+        }
+
+        while (calendarWeeks.Count < 6)
+        {
+            currentWeek = new List<DayData>();
+            for (int i = 0; i < 7; i++)
+            {
+                var date = new DateTime(year, month, daysInMonth).AddDays(daysAddedInNextMonth++);
+                currentWeek.Add(new DayData { Date = date, IsOtherMonth = true });
+            }
+            calendarWeeks.Add(currentWeek);
+        }
+    }
+
+    private async Task PreviousMonth()
+    {
+        currentMonth = currentMonth.AddMonths(-1);
+        await LoadTimeEntriesForMonth(currentMonth.Month, currentMonth.Year);
+    }
+
+    private async Task NextMonth()
+    {
+        currentMonth = currentMonth.AddMonths(1);
+        await LoadTimeEntriesForMonth(currentMonth.Month, currentMonth.Year);
+    }
+
+    public string GetDayClass(DayData day)
+    {
+        return day.IsOtherMonth ? "other-month" : "";
+    }
+
+    public class DayData
+    {
+        public DateTime Date { get; set; }
+        public bool IsOtherMonth { get; set; } = false;
+        public List<TimeTrackEntry> Entries { get; set; } = new();
+    }
+
+    private void CloseModals()
+    {
+        isCreateModalVisible = false;
+        NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true);
+    }
+
+    private async Task ShowCreateModal()
+    {
+        projects = (await projectDataAccess.GetAll()).ToList();
+        isCreateModalVisible = true;
+    }
+
+    private string GiveColorToDay(DayData? dayData)
+    {
+        if(dayData is null)
+        {
+            return string.Empty;
+        }
+
+        if(dayData.Entries.Sum(e => e.Hours) >= 8)
+        {
+            return "greenDay";
+        }
+
+        return "redDay";
+    }
+}

@@ -1,0 +1,47 @@
+﻿.sectionWrapper {
+    display: flex;
+    background-color: lightgrey;
+    padding: 1rem;
+    border:solid;
+    border-color: lightslategray;
+    border-radius: 10px;
+    margin-block-end: 1rem;
+    flex-direction: column;
+}
+
+.employeeWrapperLeft {
+    margin-left: 1rem;
+}
+
+.employeeWrapperRight {
+    margin-left: 2rem;
+}
+
+.sectionHeader {
+    font-size: 20px;
+    margin-block-end: 0.5rem;
+}
+
+.sectionBody {
+    display: flex;
+    align-content: center;
+    align-items: center;
+}
+
+.actionButton {
+    margin-block-start: 1rem;
+    margin-block-end: 2rem;
+    padding-inline-start: 1rem;
+    padding-inline-end: 1rem;
+    font-size: 16px;
+    border-radius: 4px;
+    border: solid;
+    border-width: 1px;
+    background-color: whitesmoke;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    transition: box-shadow 0.3s ease;
+}
+
+    .actionButton:hover {
+        box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.3);
+    }

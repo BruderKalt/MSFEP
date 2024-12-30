@@ -1,0 +1,82 @@
+﻿@namespace MSFEP.Components.Modal
+
+@using MSFEP.Models
+@using MSFEP.Services
+
+@inject IVerificationService verificationService
+@inject NavigationManager navManager
+
+<div class="modal-overlay" style="display:@(IsVisible ? "block" : "none");">
+    <div class="modal-dialog modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Login</h5>
+                <button class="btn-close" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container-fluid">
+                    <div class="row mb-2">
+                        <button class="btn btn-primary" @onclick="InitiateVcLogin">Login via Verifiable Credentials</button>
+                    </div>
+                    @if (!string.IsNullOrEmpty(qrCode))
+                    {
+                        <div class="row">
+                            <img src="@qrCode" alt="QR Code" />
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
+                    {
+                        <div class="row">
+                            <div class="alert alert-danger">@ErrorMessage</div>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="button-wrap">
+                    <button type="button" class="btn btn-secondary" @onclick="Close">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; } = true;
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public string State { get; set; }
+
+    private string qrCode { get; set; }
+    private string ErrorMessage { get; set; }
+
+    private async Task InitiateVcLogin()
+    {
+        try
+        {
+            var verificationResponse = await verificationService.VerifyCredential(State);
+
+            if (verificationResponse != null && !string.IsNullOrEmpty(verificationResponse.qrCode))
+            {
+                qrCode = verificationResponse.qrCode;
+                StateHasChanged();
+            }
+            else
+            {
+                ErrorMessage = "Verification request failed.";
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private void Close()
+    {
+        IsVisible = false;
+        OnClose.InvokeAsync();
+        navManager.NavigateTo("/Login", forceLoad: true);
+    }
+}
